@@ -46,39 +46,39 @@ model.to(device)
 mae = nn.L1Loss(reduction='mean')
 mse = nn.MSELoss(reduction='mean')
 SMOOTHL1LOSS = torch.nn.SmoothL1Loss()
-Loss = mse
+Loss = SMOOTHL1LOSS
 # 選擇優化器
 optimizer = torch.optim.AdamW(model.parameters(),
                                 lr=1e-2)
-# optimizer = torch.optim.SGD(params=model.parameters(),
-#                             lr=1e-1,
-#                             momentum=0.9)                
-scheduler = lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.90)
+         
+scheduler = lr_scheduler.StepLR(optimizer, step_size=150, gamma=0.9)
 
 
 # 設定訓練批次資料
 batch_size = 5000
 train_dataset = torch.utils.data.TensorDataset(train_x,
                                                 train_y)
-# val_dataset = torch.utils.data.TensorDataset(val_x, val_y)
 train_iter = torch.utils.data.DataLoader(train_dataset,
                                             batch_size,
                                             shuffle=True)
-# val_iter = torch.utils.data.DataLoader(val_dataset,
-#                                         batch_size,
-#                                         shuffle=True)
 
-
-
+# 訓練與驗證
 train_losses = []
 val_losses = []
 switch = True
 
-num_epochs = 10000
+# 計算初始損失
+model.eval()  # 設定模型驗證模式
+with torch.no_grad():
+    optimizer.zero_grad()
+    y_pred = model(val_x)
+    loss = Loss(y_pred, val_y)
+    print('初始loss:',loss.item())
+
+num_epochs = 1000
 for epoch in range(num_epochs):
-    scheduler.step()
     print('-' * 100)
-    print('Epoch {}/{}'.format(epoch, num_epochs - 1))
+    print('Epoch {}/{}'.format(epoch + 1, num_epochs))
     # 訓練階段
     for train_betch_x, train_betch_y in train_iter:
         model.train()  # 設定模型訓練模式
@@ -94,6 +94,7 @@ for epoch in range(num_epochs):
         loss.backward()
         # 根據反向傳播得到的梯度更新模型參數
         optimizer.step() 
+        scheduler.step()
 
         # 驗證階段
         model.eval()  # 設定模型驗證模式
@@ -114,15 +115,18 @@ for epoch in range(num_epochs):
             best_model_wts = copy.deepcopy(model.state_dict())
     train_losses.append(train_running_loss)
     val_losses.append(val_running_loss)
-    print('train loss: {} val loss: {} Best_val_loss: {} best_epoch於{}'.format(train_running_loss,
+    lr = optimizer.state_dict()['param_groups'][0]['lr']
+    print('train loss: {:4f} / val loss: {:4f} / Best_val_loss: {:4f} / best_epoch於 {} / Learning_rate: {}'.format(train_running_loss,
                                                                                             val_running_loss, 
                                                                                             best_val_loss,
-                                                                                            best_epoch))
+                                                                                            best_epoch,
+                                                                                            lr))
+# 儲存模型
+model.load_state_dict(best_model_wts)
+torch.save(model ,'./weight/fusion_1127_adamw.pth')
 
 # 繪出loss下降曲線
 x = 100
-model.load_state_dict(best_model_wts)
-torch.save(model, './weight/fusion_1125_2.pth')
 plt.figure()
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
@@ -134,7 +138,6 @@ plt.plot()
 plt.figure()
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
-
 plt.plot(range(x,num_epochs),train_losses[x:], label='train_losses')
 plt.plot(range(x,num_epochs),val_losses[x:], label='val_losses')
 plt.legend(loc='best')
@@ -142,7 +145,7 @@ plt.plot()
 plt.show()
 
 # 預測結果
-model = torch.load('./weight/fusion_1125_2.pth')
+model = torch.load('./weight/fusion_1127_adamw.pth')
 with torch.no_grad():
     predictions = model(test).cpu().detach().numpy()
     my_submission = pd.DataFrame({
@@ -151,5 +154,5 @@ with torch.no_grad():
         'price':
         predictions[:, 0]
     })
-    my_submission.to_csv('./csv/fusion_1125_all_2.csv', index=False)
+    my_submission.to_csv('./csv/fusion_1127_adamw.csv', index=False)
     print('寫入預測結果')

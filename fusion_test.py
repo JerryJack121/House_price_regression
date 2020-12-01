@@ -19,7 +19,7 @@ val_x = torch.tensor(np.hstack((ada_df.values[10000:, 2:3], fore_df.values[10000
 val_y = torch.tensor(ada_df.values[10000:, 1:2], dtype=torch.float).to(device)
 
 mae = nn.L1Loss(reduction='mean')
-model = torch.load('./weight/fusion_1125_2.pth')
+model = torch.load('./weight/fusion_1127_adamw.pth')
 with torch.no_grad():
     y_pred = model(val_x)
     loss = mae(y_pred, val_y)
