@@ -199,10 +199,11 @@ class fusion_net(nn.Module):
 
         return y_pred
 
-#畫出模型架構
-# x = torch.rand(1, 5).cuda()
-model = fusion_net(5).cuda()
-summary(model, (1,5))
+if __name__ == "__main__":
+    #畫出模型架構
+    x = torch.rand(1, 5).cuda()
+    model = fusion_net(5).cuda()
+    summary(model, (1,5))
 
-# with SummaryWriter(comment='Net') as w:
-#     w.add_graph(model, x)
+    with SummaryWriter(comment='Net') as w:
+        w.add_graph(model, x)
